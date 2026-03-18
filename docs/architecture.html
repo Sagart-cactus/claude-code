@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code — Architecture Documentation</title>
+<style>
+  :root {
+    --bg: #0e0f13;
+    --bg-card: #16181f;
+    --bg-card-hover: #1c1f28;
+    --bg-code: #1a1d26;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --text-muted: #9ca3af;
+    --text-dim: #6b7280;
+    --accent: #d97706;
+    --accent-soft: rgba(217,119,6,0.12);
+    --accent2: #3b82f6;
+    --accent2-soft: rgba(59,130,246,0.12);
+    --accent3: #10b981;
+    --accent3-soft: rgba(16,185,129,0.12);
+    --accent4: #8b5cf6;
+    --accent4-soft: rgba(139,92,246,0.12);
+    --accent5: #ef4444;
+    --accent5-soft: rgba(239,68,68,0.12);
+    --accent6: #ec4899;
+    --accent6-soft: rgba(236,72,153,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+    --transition: 0.2s ease;
+    --nav-w: 260px;
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; font-size: 15px; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── NAV SIDEBAR ── */
+  nav {
+    position: fixed; top: 0; left: 0;
+    width: var(--nav-w); height: 100vh;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    overflow-y: auto; z-index: 100;
+    padding: 24px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  nav .logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  nav .logo h2 {
+    font-size: 1.1rem;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  nav .logo span { font-size: 0.75rem; color: var(--text-dim); display: block; margin-top: 2px; }
+  nav a {
+    display: block;
+    padding: 7px 20px 7px 24px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all var(--transition);
+    border-left: 3px solid transparent;
+  }
+  nav a:hover, nav a.active {
+    color: var(--text);
+    background: var(--accent-soft);
+    border-left-color: var(--accent);
+  }
+  nav .nav-group { margin-top: 6px; }
+  nav .nav-group-title {
+    padding: 8px 20px 4px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  /* ── MAIN CONTENT ── */
+  main {
+    margin-left: var(--nav-w);
+    max-width: 960px;
+    padding: 48px 48px 120px;
+  }
+
+  section { margin-bottom: 72px; scroll-margin-top: 32px; }
+
+  h1 {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    margin-bottom: 12px;
+  }
+  h1 .highlight { color: var(--accent); }
+
+  h2 {
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 24px 0 10px;
+    color: var(--text);
+  }
+
+  p { color: var(--text-muted); margin-bottom: 14px; }
+  .lead { font-size: 1.15rem; color: var(--text-muted); margin-bottom: 32px; line-height: 1.7; }
+
+  /* ── CARDS ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all var(--transition);
+  }
+  .card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+  .card .card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card .card-desc { font-size: 0.83rem; color: var(--text-muted); line-height: 1.55; }
+  .card .card-meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 10px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge-dev  { background: var(--accent2-soft); color: var(--accent2); }
+  .badge-prod { background: var(--accent3-soft); color: var(--accent3); }
+  .badge-learn { background: var(--accent4-soft); color: var(--accent4); }
+  .badge-sec  { background: var(--accent5-soft); color: var(--accent5); }
+
+  /* ── CODE BLOCKS ── */
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    margin: 14px 0 18px;
+    color: var(--text-muted);
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--bg-code);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+
+  .kw { color: var(--accent4); }
+  .str { color: var(--accent3); }
+  .cmt { color: var(--text-dim); font-style: italic; }
+  .fn { color: var(--accent2); }
+  .val { color: var(--accent); }
+
+  /* ── DIAGRAM BOXES ── */
+  .diagram {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 24px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .diagram-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    font-weight: 600;
+  }
+
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .flow-box {
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    min-width: 110px;
+    white-space: nowrap;
+  }
+  .flow-arrow {
+    font-size: 1.2rem;
+    color: var(--text-dim);
+    padding: 0 6px;
+  }
+  .flow-arrow-down {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    font-size: 1.2rem;
+    color: var(--text-dim);
+    padding: 4px 0;
+  }
+  .fb-amber  { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(217,119,6,0.25); }
+  .fb-blue   { background: var(--accent2-soft); color: var(--accent2); border: 1px solid rgba(59,130,246,0.25); }
+  .fb-green  { background: var(--accent3-soft); color: var(--accent3); border: 1px solid rgba(16,185,129,0.25); }
+  .fb-purple { background: var(--accent4-soft); color: var(--accent4); border: 1px solid rgba(139,92,246,0.25); }
+  .fb-red    { background: var(--accent5-soft); color: var(--accent5); border: 1px solid rgba(239,68,68,0.25); }
+  .fb-pink   { background: var(--accent6-soft); color: var(--accent6); border: 1px solid rgba(236,72,153,0.25); }
+
+  /* ── LAYERS DIAGRAM ── */
+  .layers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .layer {
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .layer .layer-desc {
+    font-weight: 400;
+    font-size: 0.75rem;
+    color: inherit;
+    opacity: 0.7;
+  }
+
+  /* ── TABLE ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  td { color: var(--text-muted); }
+  tr:hover td { background: var(--bg-card); }
+
+  /* ── COLLAPSIBLE ── */
+  details {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin: 10px 0;
+    overflow: hidden;
+  }
+  details summary {
+    padding: 12px 18px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    user-select: none;
+    transition: background var(--transition);
+  }
+  details summary:hover { background: var(--bg-card-hover); }
+  details[open] summary { border-bottom: 1px solid var(--border); }
+  details .detail-body { padding: 16px 18px; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .tab-btn {
+    padding: 8px 18px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    font-family: var(--font-sans);
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── PARALLEL BOX ── */
+  .parallel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .parallel-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .p-box {
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+  }
+  .p-box .p-title { font-weight: 700; margin-bottom: 4px; font-size: 0.82rem; }
+  .p-box .p-desc { opacity: 0.8; font-size: 0.75rem; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { margin-left: 0; padding: 24px 20px 80px; }
+    .parallel, .parallel-3 { grid-template-columns: 1fr; }
+    .card-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── MISC ── */
+  .sep { height: 1px; background: var(--border); margin: 32px 0; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .tag {
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .highlight-box {
+    background: var(--accent-soft);
+    border: 1px solid rgba(217,119,6,0.2);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 0.88rem;
+    color: var(--accent);
+  }
+  .icon { font-size: 1.1em; }
+  ul, ol { padding-left: 22px; margin: 8px 0 14px; }
+  li { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 4px; }
+  li strong { color: var(--text); }
+  a { color: var(--accent2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .tree { font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.7; color: var(--text-muted); }
+  .tree .dir { color: var(--accent2); font-weight: 600; }
+  .tree .file { color: var(--text-muted); }
+  .tree .comment { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ NAV ═══════════════════ -->
+<nav>
+  <div class="logo">
+    <h2>Claude Code</h2>
+    <span>Architecture Guide</span>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Overview</div>
+    <a href="#overview">What is Claude Code</a>
+    <a href="#repo-structure">Repository Structure</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Architecture</div>
+    <a href="#arch-layers">System Layers</a>
+    <a href="#plugin-arch">Plugin Architecture</a>
+    <a href="#plugins-list">Official Plugins</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Components</div>
+    <a href="#commands">Commands</a>
+    <a href="#agents">Agents</a>
+    <a href="#skills">Skills</a>
+    <a href="#hooks">Hook System</a>
+    <a href="#tools">Tool System</a>
+    <a href="#mcp">MCP Integration</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Workflows</div>
+    <a href="#flow-command">Command Execution Flow</a>
+    <a href="#flow-feature">Feature Dev Workflow</a>
+    <a href="#flow-review">Code Review Pipeline</a>
+    <a href="#flow-hooks">Hook Interception</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Configuration</div>
+    <a href="#config">Settings &amp; Config</a>
+    <a href="#env-vars">Environment Variables</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<main>
+
+<!-- ━━━ OVERVIEW ━━━ -->
+<section id="overview">
+  <h1>How <span class="highlight">Claude Code</span> Works</h1>
+  <p class="lead">
+    Claude Code is Anthropic's agentic coding tool that lives in your terminal. It understands your codebase,
+    executes tasks, and helps you code faster through natural language. This page documents the architecture
+    of the <strong>official plugins repository</strong> — the extensibility ecosystem that powers commands,
+    agents, skills, hooks, and MCP integrations.
+  </p>
+
+  <div class="highlight-box">
+    This repository contains 12 official plugins, a plugin marketplace registry, and extensive examples.
+    The core CLI binary is separate — plugins extend it through a well-defined contract.
+  </div>
+</section>
+
+<!-- ━━━ SYSTEM LAYERS ━━━ -->
+<section id="arch-layers">
+  <h2>System Architecture Layers</h2>
+  <p>Claude Code is organized into stacked layers, from user input at the top to tool execution at the bottom.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">End-to-End Architecture</div>
+    <div class="layers">
+      <div class="layer fb-amber">
+        User Input Layer
+        <span class="layer-desc">/commit, /feature-dev, plain prompts, CLI flags</span>
+      </div>
+      <div class="layer fb-purple">
+        Command Resolution Layer
+        <span class="layer-desc">Plugin discovery, command loading, context injection</span>
+      </div>
+      <div class="layer fb-red">
+        Hook Interception Layer
+        <span class="layer-desc">SessionStart, PreToolUse, UserPromptSubmit, Stop</span>
+      </div>
+      <div class="layer fb-blue">
+        Claude Model &amp; Reasoning Layer
+        <span class="layer-desc">Multi-model (Opus, Sonnet, Haiku) — agents, skills, tool calls</span>
+      </div>
+      <div class="layer fb-green">
+        Tool Execution Layer
+        <span class="layer-desc">Bash, Read, Write, Edit, Glob, Grep, WebFetch, Skill…</span>
+      </div>
+      <div class="layer fb-pink">
+        Post-Tool &amp; State Management
+        <span class="layer-desc">PostToolUse hooks, rule engine, session state, output</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ REPO STRUCTURE ━━━ -->
+<section id="repo-structure">
+  <h2>Repository Structure</h2>
+  <p>The top-level layout of the <code>claude-code</code> repository.</p>
+
+  <div class="tree">
+<pre><code><span class="dir">claude-code/</span>
+├── <span class="file">README.md</span>                  <span class="comment"># Project overview</span>
+├── <span class="file">CHANGELOG.md</span>              <span class="comment"># Version history (2.1.78+)</span>
+├── <span class="file">LICENSE.md</span>                <span class="comment"># License</span>
+├── <span class="file">SECURITY.md</span>               <span class="comment"># HackerOne VDP policy</span>
+├── <span class="dir">.claude/</span>                   <span class="comment"># Local Claude config</span>
+│   └── <span class="dir">commands/</span>             <span class="comment"># Global commands (commit-push-pr, dedupe, triage-issue)</span>
+├── <span class="dir">.claude-plugin/</span>            <span class="comment"># Plugin marketplace</span>
+│   └── <span class="file">marketplace.json</span>     <span class="comment"># Central plugin registry</span>
+├── <span class="dir">.devcontainer/</span>             <span class="comment"># Docker dev environment</span>
+├── <span class="dir">.github/</span>                   <span class="comment"># CI/CD workflows &amp; issue templates</span>
+├── <span class="dir">examples/</span>                  <span class="comment"># Hook &amp; settings examples</span>
+│   ├── <span class="dir">hooks/</span>               <span class="comment"># bash_command_validator_example.py</span>
+│   └── <span class="dir">settings/</span>            <span class="comment"># strict, lax, bash-sandbox configs</span>
+├── <span class="dir">plugins/</span>                   <span class="comment"># 12 official plugins</span>
+│   ├── <span class="dir">agent-sdk-dev/</span>
+│   ├── <span class="dir">claude-opus-4-5-migration/</span>
+│   ├── <span class="dir">code-review/</span>
+│   ├── <span class="dir">commit-commands/</span>
+│   ├── <span class="dir">explanatory-output-style/</span>
+│   ├── <span class="dir">feature-dev/</span>
+│   ├── <span class="dir">frontend-design/</span>
+│   ├── <span class="dir">hookify/</span>
+│   ├── <span class="dir">learning-output-style/</span>
+│   ├── <span class="dir">plugin-dev/</span>
+│   ├── <span class="dir">pr-review-toolkit/</span>
+│   ├── <span class="dir">ralph-wiggum/</span>
+│   └── <span class="dir">security-guidance/</span>
+├── <span class="dir">scripts/</span>                   <span class="comment"># GitHub automation (TypeScript)</span>
+└── <span class="dir">Script/</span>                    <span class="comment"># Additional scripts</span></code></pre>
+  </div>
+</section>
+
+<!-- ━━━ PLUGIN ARCHITECTURE ━━━ -->
+<section id="plugin-arch">
+  <h2>Plugin Architecture</h2>
+  <p>Every plugin is self-contained and follows a consistent directory structure. Plugins are registered
+  in the central <code>marketplace.json</code> and discovered automatically by the CLI.</p>
+
+  <h3>Standard Plugin Structure</h3>
+  <div class="tree">
+<pre><code><span class="dir">plugin-name/</span>
+├── <span class="dir">.claude-plugin/</span>
+│   └── <span class="file">plugin.json</span>          <span class="comment"># Metadata (name, version, author)</span>
+├── <span class="file">README.md</span>                <span class="comment"># Plugin documentation</span>
+├── <span class="dir">commands/</span>                <span class="comment"># Slash commands (*.md)</span>
+├── <span class="dir">agents/</span>                  <span class="comment"># Autonomous agents (*.md)</span>
+├── <span class="dir">skills/</span>                  <span class="comment"># Reusable knowledge units</span>
+│   └── <span class="dir">skill-name/</span>
+│       ├── <span class="file">SKILL.md</span>
+│       ├── <span class="dir">examples/</span>
+│       └── <span class="dir">references/</span>
+├── <span class="dir">hooks/</span>                   <span class="comment"># Event handlers</span>
+│   ├── <span class="file">hooks.json</span>           <span class="comment"># Hook configuration</span>
+│   └── <span class="file">*.py / *.sh</span>          <span class="comment"># Hook implementations</span>
+└── <span class="file">.mcp.json</span>                <span class="comment"># MCP server config (optional)</span></code></pre>
+  </div>
+
+  <h3>Plugin Manifest (<code>plugin.json</code>)</h3>
+<pre><code>{
+  <span class="str">"name"</span>: <span class="str">"my-plugin"</span>,
+  <span class="str">"version"</span>: <span class="str">"1.0.0"</span>,
+  <span class="str">"description"</span>: <span class="str">"What the plugin does"</span>,
+  <span class="str">"author"</span>: {
+    <span class="str">"name"</span>: <span class="str">"Author Name"</span>,
+    <span class="str">"email"</span>: <span class="str">"author@example.com"</span>
+  }
+}</code></pre>
+
+  <h3>Component Relationships</h3>
+  <div class="diagram">
+    <div class="diagram-title">How Plugin Components Interact</div>
+    <div class="flow" style="flex-wrap:wrap; gap:8px;">
+      <div class="flow-box fb-amber">User types /command</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-purple">Command resolves plugin</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-blue">Command launches Agents</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-green">Agents use Skills</div>
+    </div>
+    <div style="height:12px;"></div>
+    <div class="flow" style="flex-wrap:wrap; gap:8px;">
+      <div class="flow-box fb-red">Hooks intercept at every step</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-pink">MCP extends tool surface</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-green">Results flow back to user</div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ OFFICIAL PLUGINS ━━━ -->
+<section id="plugins-list">
+  <h2>Official Plugins</h2>
+  <p>12 production-quality plugins organized by category.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title"><span class="badge badge-dev">dev</span> agent-sdk-dev</div>
+      <div class="card-desc">Development kit for working with the Claude Agent SDK. Includes validators and commands for TypeScript and Python agents.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-dev">dev</span> claude-opus-4-5-migration</div>
+      <div class="card-desc">Migrate code and prompts from Sonnet 4.x and Opus 4.1 to Opus 4.5. Automated migration skills.</div>
+      <div class="card-meta">William Hu</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-prod">prod</span> code-review</div>
+      <div class="card-desc">Automated PR review with multi-agent confidence scoring. Launches parallel agents (Haiku, Sonnet, Opus) for different review aspects.</div>
+      <div class="card-meta">Boris Cherny</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-prod">prod</span> commit-commands</div>
+      <div class="card-desc">Git workflow automation: /commit, /push, /commit-push-pr. Context-aware commit messages.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-learn">learn</span> explanatory-output-style</div>
+      <div class="card-desc">Educational insights about implementation choices and codebase patterns. Mimics the deprecated Explanatory output style.</div>
+      <div class="card-meta">Dickson Tsai</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-dev">dev</span> feature-dev</div>
+      <div class="card-desc">7-phase structured feature development: Discovery → Exploration → Questions → Architecture → Implementation → Review → Completion.</div>
+      <div class="card-meta">Siddharth Bidasaria</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-dev">dev</span> frontend-design</div>
+      <div class="card-desc">Production-grade frontend design guidance. Avoids generic AI aesthetics — focuses on distinctive, polished interfaces.</div>
+      <div class="card-meta">Prithvi Rajasekaran &amp; Alexander Bricken</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-prod">prod</span> hookify</div>
+      <div class="card-desc">Create custom hooks from markdown files. Rule engine with regex matching, conditions, and block/warn actions.</div>
+      <div class="card-meta">Daisy Hollman</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-learn">learn</span> learning-output-style</div>
+      <div class="card-desc">Interactive learning mode that requests meaningful code contributions at decision points.</div>
+      <div class="card-meta">Boris Cherny</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-dev">dev</span> plugin-dev</div>
+      <div class="card-desc">Comprehensive plugin development toolkit. 7 expert skills covering hooks, MCP, commands, agents, and best practices.</div>
+      <div class="card-meta">Daisy Hollman</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-prod">prod</span> pr-review-toolkit</div>
+      <div class="card-desc">6 specialized PR review agents: comments, tests, error handling, type design, code quality, simplification.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-dev">dev</span> ralph-wiggum</div>
+      <div class="card-desc">Self-referential AI loops for iterative development. Claude works repeatedly on the same task, seeing its previous work.</div>
+      <div class="card-meta">Daisy Hollman</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge badge-sec">sec</span> security-guidance</div>
+      <div class="card-desc">PreToolUse hook that warns about 9 security patterns: command injection, XSS, eval(), pickle, os.system(), etc.</div>
+      <div class="card-meta">David Dworken</div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ COMMANDS ━━━ -->
+<section id="commands">
+  <h2>Commands</h2>
+  <p>Commands are markdown files with YAML frontmatter that define slash commands (<code>/commit</code>, <code>/feature-dev</code>, etc.).
+  They are the primary user-facing extension point.</p>
+
+  <h3>Command File Format</h3>
+<pre><code><span class="cmt">---</span>
+<span class="kw">description</span>: <span class="str">Create a git commit</span>
+<span class="kw">argument-hint</span>: <span class="str">Optional commit message</span>
+<span class="kw">allowed-tools</span>: <span class="str">Bash(git add:*), Bash(git status:*), Bash(git commit:*)</span>
+<span class="cmt">---</span>
+
+<span class="cmt"># Command body in Markdown</span>
+
+<span class="cmt">## Context</span>
+- Current git status: <span class="val">!`git status`</span>
+- Current diff: <span class="val">!`git diff HEAD`</span>
+- Recent commits: <span class="val">!`git log --oneline -10`</span>
+
+<span class="cmt">## Your task</span>
+Based on the above changes, create a single git commit.</code></pre>
+
+  <h3>Key Features</h3>
+  <ul>
+    <li><strong>allowed-tools</strong> — Restricts which tools the command can use (security boundary)</li>
+    <li><strong>Context injection</strong> — <code>!`command`</code> syntax dynamically runs shell commands and injects output</li>
+    <li><strong>$ARGUMENTS</strong> — Passes user arguments into the command body</li>
+    <li><strong>argument-hint</strong> — Tab-completion hint shown in CLI</li>
+  </ul>
+
+  <details>
+    <summary>Example: /commit-push-pr Command</summary>
+    <div class="detail-body">
+      <p>The <code>/commit-push-pr</code> command chains three git operations. It:</p>
+      <ol>
+        <li>Reads staged/unstaged changes via context injection</li>
+        <li>Creates a commit with a generated message</li>
+        <li>Pushes to the remote branch</li>
+        <li>Creates a pull request using <code>gh pr create</code></li>
+      </ol>
+      <p>Allowed tools: <code>Bash(git:*)</code>, <code>Bash(gh:*)</code></p>
+    </div>
+  </details>
+</section>
+
+<!-- ━━━ AGENTS ━━━ -->
+<section id="agents">
+  <h2>Agents</h2>
+  <p>Agents are specialized Claude instances launched by commands or other agents. Each agent has a focused role,
+  specific tools, and can run in parallel with other agents.</p>
+
+  <h3>Agent Definition Format</h3>
+<pre><code><span class="cmt">---</span>
+<span class="kw">name</span>: <span class="str">code-explorer</span>
+<span class="kw">description</span>: <span class="str">Analyzes existing codebase features</span>
+<span class="kw">tools</span>: <span class="str">Glob, Grep, LS, Read, WebFetch, TodoWrite</span>
+<span class="kw">model</span>: <span class="str">sonnet</span>
+<span class="kw">color</span>: <span class="str">yellow</span>
+<span class="cmt">---</span>
+
+<span class="cmt"># System prompt in markdown</span>
+You are an expert code analyst. Trace through the codebase
+comprehensively to understand architecture and patterns...</code></pre>
+
+  <h3>Agent Properties</h3>
+  <table>
+    <tr><th>Property</th><th>Description</th><th>Values</th></tr>
+    <tr><td><code>name</code></td><td>Unique identifier</td><td>kebab-case string</td></tr>
+    <tr><td><code>tools</code></td><td>Available tools (restricted set)</td><td>Glob, Grep, Read, Bash, etc.</td></tr>
+    <tr><td><code>model</code></td><td>Which Claude model to use</td><td>opus, sonnet, haiku, inherit</td></tr>
+    <tr><td><code>color</code></td><td>UI indicator in terminal</td><td>yellow, green, blue, etc.</td></tr>
+    <tr><td><code>effort</code></td><td>Thinking effort level</td><td>low, medium, high</td></tr>
+    <tr><td><code>maxTurns</code></td><td>Max conversation turns</td><td>integer</td></tr>
+    <tr><td><code>disallowedTools</code></td><td>Tools to exclude</td><td>comma-separated list</td></tr>
+  </table>
+
+  <h3>Multi-Agent Patterns</h3>
+  <div class="diagram">
+    <div class="diagram-title">Parallel Agent Execution</div>
+    <div style="text-align:center;">
+      <div class="flow-box fb-amber" style="display:inline-block; margin-bottom:12px;">Command launches agents</div>
+    </div>
+    <div class="flow-arrow-down">↓</div>
+    <div class="parallel parallel-3">
+      <div class="p-box fb-blue">
+        <div class="p-title">Agent 1 (Sonnet)</div>
+        <div class="p-desc">code-explorer: traces architecture</div>
+      </div>
+      <div class="p-box fb-green">
+        <div class="p-title">Agent 2 (Sonnet)</div>
+        <div class="p-desc">code-explorer: finds similar features</div>
+      </div>
+      <div class="p-box fb-purple">
+        <div class="p-title">Agent 3 (Sonnet)</div>
+        <div class="p-desc">code-explorer: analyzes UI patterns</div>
+      </div>
+    </div>
+    <div class="flow-arrow-down">↓</div>
+    <div style="text-align:center;">
+      <div class="flow-box fb-amber" style="display:inline-block;">Results merged &amp; synthesized</div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ SKILLS ━━━ -->
+<section id="skills">
+  <h2>Skills</h2>
+  <p>Skills are reusable knowledge units that agents can load when they need specialized guidance.
+  They follow a progressive disclosure pattern to manage context window usage.</p>
+
+  <h3>Skill Structure</h3>
+  <div class="tree">
+<pre><code><span class="dir">skills/</span>
+└── <span class="dir">hook-development/</span>
+    ├── <span class="file">SKILL.md</span>             <span class="comment"># Core docs (1,600-1,700 words)</span>
+    ├── <span class="dir">examples/</span>            <span class="comment"># Working examples</span>
+    │   ├── <span class="file">pretooluse-hook.md</span>
+    │   └── <span class="file">session-start-hook.md</span>
+    └── <span class="dir">references/</span>          <span class="comment"># Deep-dive documentation</span>
+        └── <span class="file">hook-events.md</span></code></pre>
+  </div>
+
+  <h3>Progressive Disclosure Pattern</h3>
+  <div class="diagram">
+    <div class="diagram-title">How Skills Load Context</div>
+    <div class="flow">
+      <div class="flow-box fb-green">Metadata (always loaded)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-blue">SKILL.md (on trigger)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-purple">Examples (as needed)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-amber">References (deep dive)</div>
+    </div>
+  </div>
+
+  <h3>Available Skills (plugin-dev)</h3>
+  <div class="tag-list">
+    <span class="tag">hook-development</span>
+    <span class="tag">mcp-integration</span>
+    <span class="tag">command-development</span>
+    <span class="tag">agent-development</span>
+    <span class="tag">plugin-structure</span>
+    <span class="tag">plugin-settings</span>
+    <span class="tag">plugin-best-practices</span>
+  </div>
+</section>
+
+<!-- ━━━ HOOKS ━━━ -->
+<section id="hooks">
+  <h2>Hook System</h2>
+  <p>Hooks are event-driven interceptors that run at specific points in the CLI lifecycle.
+  They can validate, warn, block, or inject context.</p>
+
+  <h3>Hook Events</h3>
+  <table>
+    <tr><th>Event</th><th>When</th><th>Can Block?</th></tr>
+    <tr><td><code>SessionStart</code></td><td>Session begins</td><td>No — injects context</td></tr>
+    <tr><td><code>PreToolUse</code></td><td>Before any tool executes</td><td>Yes (exit code 2)</td></tr>
+    <tr><td><code>PostToolUse</code></td><td>After tool completes</td><td>No</td></tr>
+    <tr><td><code>UserPromptSubmit</code></td><td>User submits a prompt</td><td>No</td></tr>
+    <tr><td><code>Stop</code></td><td>Claude wants to exit</td><td>Yes (can force continue)</td></tr>
+    <tr><td><code>SubagentStop</code></td><td>Subagent stops</td><td>Yes</td></tr>
+    <tr><td><code>SessionEnd</code></td><td>Session ends</td><td>No</td></tr>
+    <tr><td><code>PreCompact</code></td><td>Before context compression</td><td>No</td></tr>
+    <tr><td><code>StopFailure</code></td><td>Turn ends due to API error</td><td>No</td></tr>
+    <tr><td><code>Notification</code></td><td>Notification event</td><td>No</td></tr>
+  </table>
+
+  <h3>Hook Configuration (<code>hooks.json</code>)</h3>
+<pre><code>{
+  <span class="str">"hooks"</span>: {
+    <span class="str">"PreToolUse"</span>: [
+      {
+        <span class="str">"matcher"</span>: <span class="str">"Bash|Edit|Write"</span>,
+        <span class="str">"hooks"</span>: [
+          {
+            <span class="str">"type"</span>: <span class="str">"command"</span>,
+            <span class="str">"command"</span>: <span class="str">"python3 ${CLAUDE_PLUGIN_ROOT}/hooks/validate.py"</span>,
+            <span class="str">"timeout"</span>: <span class="val">10</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+
+  <h3>Hook I/O Protocol</h3>
+  <div class="parallel">
+    <div>
+      <h3 style="margin-top:0;">Input (stdin JSON)</h3>
+<pre><code>{
+  <span class="str">"session_id"</span>: <span class="str">"abc123"</span>,
+  <span class="str">"hook_event_name"</span>: <span class="str">"PreToolUse"</span>,
+  <span class="str">"tool_name"</span>: <span class="str">"Write"</span>,
+  <span class="str">"tool_input"</span>: {
+    <span class="str">"file_path"</span>: <span class="str">"src/app.ts"</span>,
+    <span class="str">"content"</span>: <span class="str">"..."</span>
+  }
+}</code></pre>
+    </div>
+    <div>
+      <h3 style="margin-top:0;">Output (stdout JSON)</h3>
+<pre><code>{
+  <span class="str">"hookSpecificOutput"</span>: {
+    <span class="str">"hookEventName"</span>: <span class="str">"PreToolUse"</span>,
+    <span class="str">"permissionDecision"</span>: <span class="str">"deny"</span>
+  },
+  <span class="str">"systemMessage"</span>: <span class="str">"Warning!"</span>
+}
+<span class="cmt">// Exit code: 0 = allow, 2 = block</span></code></pre>
+    </div>
+  </div>
+
+  <details>
+    <summary>Hookify Rule Engine</summary>
+    <div class="detail-body">
+      <p>The <strong>hookify</strong> plugin provides a sophisticated rule engine that evaluates user-defined rules from markdown files.</p>
+
+      <h3>Simple Rule Format</h3>
+<pre><code><span class="cmt">---</span>
+<span class="kw">name</span>: <span class="str">block-dangerous-rm</span>
+<span class="kw">enabled</span>: <span class="val">true</span>
+<span class="kw">event</span>: <span class="str">bash</span>
+<span class="kw">pattern</span>: <span class="str">rm\s+-rf</span>
+<span class="kw">action</span>: <span class="str">block</span>
+<span class="cmt">---</span>
+
+Warning! Dangerous rm command detected.</code></pre>
+
+      <h3>Advanced Rule Format (Multiple Conditions)</h3>
+<pre><code><span class="cmt">---</span>
+<span class="kw">name</span>: <span class="str">protect-env-files</span>
+<span class="kw">conditions</span>:
+  - <span class="kw">field</span>: <span class="str">file_path</span>
+    <span class="kw">operator</span>: <span class="str">regex_match</span>
+    <span class="kw">pattern</span>: <span class="str">\.env$</span>
+  - <span class="kw">field</span>: <span class="str">new_text</span>
+    <span class="kw">operator</span>: <span class="str">contains</span>
+    <span class="kw">pattern</span>: <span class="str">API_KEY</span>
+<span class="kw">action</span>: <span class="str">block</span>
+<span class="cmt">---</span></code></pre>
+
+      <p><strong>Operators:</strong> <code>regex_match</code>, <code>contains</code>, <code>equals</code>,
+      <code>not_contains</code>, <code>not_equals</code></p>
+      <p><strong>Fields:</strong> <code>command</code> (Bash), <code>file_path</code>, <code>new_text</code>,
+      <code>old_text</code>, <code>content</code>, <code>reason</code>, <code>transcript</code></p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Security Guidance Hook (9 Patterns)</summary>
+    <div class="detail-body">
+      <p>The <code>security-guidance</code> plugin checks for these vulnerability patterns on every file edit:</p>
+      <table>
+        <tr><th>#</th><th>Pattern</th><th>Risk</th></tr>
+        <tr><td>1</td><td>GitHub Actions workflow injection</td><td>Command injection via PR titles/branches</td></tr>
+        <tr><td>2</td><td><code>child_process.exec()</code></td><td>Shell command injection</td></tr>
+        <tr><td>3</td><td><code>new Function()</code></td><td>Code injection</td></tr>
+        <tr><td>4</td><td><code>eval()</code></td><td>Arbitrary code execution</td></tr>
+        <tr><td>5</td><td><code>dangerouslySetInnerHTML</code></td><td>XSS in React</td></tr>
+        <tr><td>6</td><td><code>document.write()</code></td><td>XSS</td></tr>
+        <tr><td>7</td><td><code>.innerHTML =</code></td><td>XSS</td></tr>
+        <tr><td>8</td><td>Python <code>pickle</code></td><td>Insecure deserialization</td></tr>
+        <tr><td>9</td><td><code>os.system()</code></td><td>Shell command injection</td></tr>
+      </table>
+      <p>Warnings are session-scoped — each pattern only warns once per session to avoid noise.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ━━━ TOOLS ━━━ -->
+<section id="tools">
+  <h2>Tool System</h2>
+  <p>Tools are the actions Claude can take. Each tool receives structured JSON input and returns output.
+  Commands can restrict which tools are available via <code>allowed-tools</code>.</p>
+
+  <h3>Core Tools</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Bash</div>
+      <div class="card-desc">Execute shell commands. Input: <code>{"command": "..."}</code>. Supports timeouts, background execution.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Read</div>
+      <div class="card-desc">Read file contents. Supports line ranges, images, PDFs, Jupyter notebooks.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Write</div>
+      <div class="card-desc">Create or overwrite files. Input: <code>{"file_path": "...", "content": "..."}</code></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Edit</div>
+      <div class="card-desc">Exact string replacements. Input: <code>{"file_path", "old_string", "new_string"}</code></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Glob</div>
+      <div class="card-desc">File pattern matching. Find files by name patterns like <code>**/*.ts</code>.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grep</div>
+      <div class="card-desc">Content search with regex. Built on ripgrep. Supports context lines, file type filters.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">WebFetch</div>
+      <div class="card-desc">Fetch and analyze web content. Converts HTML to markdown, processes with AI.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">WebSearch</div>
+      <div class="card-desc">Search the web for up-to-date information. Returns formatted results with links.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">TodoWrite</div>
+      <div class="card-desc">Structured task list management. Track progress with pending/in_progress/completed states.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Agent</div>
+      <div class="card-desc">Launch specialized subagents. Supports parallel execution, background running, worktree isolation.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Skill</div>
+      <div class="card-desc">Invoke plugin skills. Loads knowledge units into the current context.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">NotebookEdit</div>
+      <div class="card-desc">Edit Jupyter notebook cells. Supports replace, insert, and delete operations.</div>
+    </div>
+  </div>
+
+  <h3>Permission Control</h3>
+  <p>The <code>allowed-tools</code> field in command frontmatter restricts tool access. Pattern-based matching:</p>
+<pre><code><span class="cmt"># Only allow specific git and GitHub CLI commands</span>
+<span class="kw">allowed-tools</span>: <span class="str">Bash(git add:*), Bash(git commit:*), Bash(gh pr create:*)</span>
+
+<span class="cmt"># Allow read-only tools plus specific MCP tool</span>
+<span class="kw">allowed-tools</span>: <span class="str">Glob, Grep, Read, mcp__github__create_inline_comment</span></code></pre>
+</section>
+
+<!-- ━━━ MCP ━━━ -->
+<section id="mcp">
+  <h2>MCP Integration</h2>
+  <p>The Model Context Protocol allows plugins to integrate external services as additional tool providers.</p>
+
+  <h3>Configuration (<code>.mcp.json</code>)</h3>
+<pre><code>{
+  <span class="str">"mcpServers"</span>: {
+    <span class="str">"github-tools"</span>: {
+      <span class="str">"type"</span>: <span class="str">"stdio"</span>,
+      <span class="str">"command"</span>: <span class="str">"node"</span>,
+      <span class="str">"args"</span>: [<span class="str">"${CLAUDE_PLUGIN_ROOT}/mcp-server.js"</span>],
+      <span class="str">"env"</span>: {
+        <span class="str">"GITHUB_TOKEN"</span>: <span class="str">"${GITHUB_TOKEN}"</span>
+      }
+    }
+  }
+}</code></pre>
+
+  <h3>Server Types</h3>
+  <table>
+    <tr><th>Type</th><th>Transport</th><th>Use Case</th></tr>
+    <tr><td><code>stdio</code></td><td>stdin/stdout</td><td>Local tools (most common)</td></tr>
+    <tr><td><code>sse</code></td><td>Server-Sent Events</td><td>Hosted services</td></tr>
+    <tr><td><code>http</code></td><td>HTTP REST</td><td>REST API integration</td></tr>
+    <tr><td><code>websocket</code></td><td>WebSocket</td><td>Real-time bidirectional</td></tr>
+  </table>
+</section>
+
+<!-- ━━━ COMMAND EXECUTION FLOW ━━━ -->
+<section id="flow-command">
+  <h2>Command Execution Flow</h2>
+  <p>What happens when a user types <code>/commit</code> in the terminal.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">End-to-End: /commit Execution</div>
+    <div class="layers" style="gap:6px;">
+      <div class="layer fb-amber">
+        <span><strong>1.</strong> User types <code>/commit</code></span>
+      </div>
+      <div class="layer fb-purple">
+        <span><strong>2.</strong> CLI loads <code>plugins/commit-commands/commands/commit.md</code></span>
+      </div>
+      <div class="layer fb-blue">
+        <span><strong>3.</strong> Context injection: <code>!`git status`</code>, <code>!`git diff HEAD`</code>, <code>!`git log`</code></span>
+      </div>
+      <div class="layer fb-green">
+        <span><strong>4.</strong> Claude receives context + instructions, generates tool calls</span>
+      </div>
+      <div class="layer fb-red">
+        <span><strong>5.</strong> PreToolUse hook validates: allowed-tools check + security patterns</span>
+      </div>
+      <div class="layer fb-green">
+        <span><strong>6.</strong> Tools execute: <code>git add</code>, <code>git commit -m "..."</code></span>
+      </div>
+      <div class="layer fb-pink">
+        <span><strong>7.</strong> PostToolUse hook processes output → result shown to user</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ FEATURE DEV WORKFLOW ━━━ -->
+<section id="flow-feature">
+  <h2>Feature Development Workflow</h2>
+  <p>The <code>/feature-dev</code> command implements a structured 7-phase development process.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">7-Phase Feature Development</div>
+    <div class="layers" style="gap:4px;">
+      <div class="layer fb-amber">
+        <span><strong>Phase 1: Discovery</strong></span>
+        <span class="layer-desc">Understand what needs to be built. Clarify requirements.</span>
+      </div>
+      <div class="layer fb-blue">
+        <span><strong>Phase 2: Codebase Exploration</strong></span>
+        <span class="layer-desc">Launch 2-3 code-explorer agents in parallel</span>
+      </div>
+      <div class="layer fb-purple">
+        <span><strong>Phase 3: Clarifying Questions</strong></span>
+        <span class="layer-desc">Identify all ambiguities, edge cases. CRITICAL — do not skip.</span>
+      </div>
+      <div class="layer fb-green">
+        <span><strong>Phase 4: Architecture Design</strong></span>
+        <span class="layer-desc">Launch 2-3 code-architect agents with different approaches</span>
+      </div>
+      <div class="layer fb-pink">
+        <span><strong>Phase 5: User Choice</strong></span>
+        <span class="layer-desc">Present approaches with trade-offs. User picks direction.</span>
+      </div>
+      <div class="layer fb-blue">
+        <span><strong>Phase 6: Implementation</strong></span>
+        <span class="layer-desc">Code the feature using chosen architecture</span>
+      </div>
+      <div class="layer fb-green">
+        <span><strong>Phase 7: Review &amp; Completion</strong></span>
+        <span class="layer-desc">Launch code-reviewer agents. Final quality check.</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Agent Roles</h3>
+  <div class="parallel parallel-3">
+    <div class="p-box fb-blue">
+      <div class="p-title">code-explorer</div>
+      <div class="p-desc">Sonnet model. Traces architecture, finds similar features, identifies patterns. Returns key file lists.</div>
+    </div>
+    <div class="p-box fb-green">
+      <div class="p-title">code-architect</div>
+      <div class="p-desc">Sonnet model. Designs implementation approaches: minimal, clean, or pragmatic balance.</div>
+    </div>
+    <div class="p-box fb-purple">
+      <div class="p-title">code-reviewer</div>
+      <div class="p-desc">Reviews implementation quality, correctness, and adherence to patterns.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ CODE REVIEW PIPELINE ━━━ -->
+<section id="flow-review">
+  <h2>Code Review Pipeline</h2>
+  <p>The <code>/code-review</code> command orchestrates multiple agents at different model tiers for PR review.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Multi-Agent Code Review Pipeline</div>
+    <div class="layers" style="gap:4px;">
+      <div class="layer fb-amber">
+        <span><strong>Step 1:</strong> Haiku agent checks PR status (closed? draft? already reviewed?)</span>
+      </div>
+      <div class="layer fb-purple">
+        <span><strong>Step 2:</strong> Haiku agent finds relevant CLAUDE.md files</span>
+      </div>
+      <div class="layer fb-blue">
+        <span><strong>Step 3:</strong> Sonnet agent summarizes PR changes</span>
+      </div>
+    </div>
+
+    <div style="height: 16px;"></div>
+    <div style="text-align:center; color: var(--text-dim); font-size: 0.8rem; font-weight: 600;">Step 4: Launch 4 review agents in parallel</div>
+    <div style="height: 8px;"></div>
+
+    <div class="parallel" style="grid-template-columns: 1fr 1fr;">
+      <div class="p-box fb-blue">
+        <div class="p-title">Sonnet Agent 1</div>
+        <div class="p-desc">CLAUDE.md compliance audit (part 1)</div>
+      </div>
+      <div class="p-box fb-blue">
+        <div class="p-title">Sonnet Agent 2</div>
+        <div class="p-desc">CLAUDE.md compliance audit (part 2)</div>
+      </div>
+      <div class="p-box fb-red">
+        <div class="p-title">Opus Agent 3</div>
+        <div class="p-desc">Bug scanning (diff-only, no context)</div>
+      </div>
+      <div class="p-box fb-red">
+        <div class="p-title">Opus Agent 4</div>
+        <div class="p-desc">Security + logic issues (changed code only)</div>
+      </div>
+    </div>
+
+    <div style="height: 12px;"></div>
+    <div class="layers" style="gap:4px;">
+      <div class="layer fb-green">
+        <span><strong>Step 5:</strong> Validation subagents verify each issue (Opus for bugs, Sonnet for CLAUDE.md)</span>
+      </div>
+      <div class="layer fb-pink">
+        <span><strong>Step 6:</strong> Filter unvalidated issues → HIGH SIGNAL only</span>
+      </div>
+      <div class="layer fb-amber">
+        <span><strong>Step 7-9:</strong> Output summary → Post inline comments with <code>gh pr comment</code></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    Only HIGH SIGNAL issues are reported: compilation failures, clear logic errors, and unambiguous CLAUDE.md violations.
+    False positives erode trust — when in doubt, don't flag it.
+  </div>
+</section>
+
+<!-- ━━━ HOOK INTERCEPTION ━━━ -->
+<section id="flow-hooks">
+  <h2>Hook Interception Pipeline</h2>
+  <p>Every tool invocation passes through the hook pipeline before and after execution.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">PreToolUse Hook Pipeline</div>
+    <div class="flow" style="flex-wrap:wrap; gap:8px;">
+      <div class="flow-box fb-blue">Claude calls tool</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-purple">Matcher checks tool name</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-amber">Hook receives JSON stdin</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-red">Hook evaluates rules</div>
+    </div>
+    <div style="height:12px;"></div>
+    <div class="parallel">
+      <div class="p-box fb-green">
+        <div class="p-title">Exit code 0 → Allow</div>
+        <div class="p-desc">Tool executes normally. Optional systemMessage added to context.</div>
+      </div>
+      <div class="p-box fb-red">
+        <div class="p-title">Exit code 2 → Block</div>
+        <div class="p-desc">Tool execution prevented. Warning shown. Claude must try alternative.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Full Session Lifecycle</div>
+    <div class="flow" style="flex-wrap:wrap; gap:8px;">
+      <div class="flow-box fb-green">SessionStart</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-amber">UserPromptSubmit</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-purple">PreToolUse</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-blue">Tool Executes</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-pink">PostToolUse</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-red">Stop</div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ CONFIG ━━━ -->
+<section id="config">
+  <h2>Settings &amp; Configuration</h2>
+  <p>Claude Code supports multiple configuration layers for different use cases.</p>
+
+  <h3>Settings Presets</h3>
+  <div class="parallel parallel-3">
+    <div class="p-box fb-green">
+      <div class="p-title">Strict Mode</div>
+      <div class="p-desc">Restrictive permissions. Maximum safety. Requires approval for most operations.</div>
+    </div>
+    <div class="p-box fb-amber">
+      <div class="p-title">Lax Mode</div>
+      <div class="p-desc">Permissive settings. Fewer prompts. For experienced users who trust their workflow.</div>
+    </div>
+    <div class="p-box fb-blue">
+      <div class="p-title">Bash Sandbox</div>
+      <div class="p-desc">Sandboxed bash execution. Filesystem restrictions. Network controls.</div>
+    </div>
+  </div>
+
+  <h3>Per-Project Plugin Config</h3>
+  <p>Plugins store per-project settings in <code>.claude/plugin-name.local.md</code> files:</p>
+<pre><code><span class="cmt">---</span>
+<span class="kw">enabled</span>: <span class="val">true</span>
+<span class="kw">strictMode</span>: <span class="val">false</span>
+<span class="kw">ignorePaths</span>: [<span class="str">"vendor/"</span>, <span class="str">"node_modules/"</span>]
+<span class="cmt">---</span>
+
+<span class="cmt"># Additional context in markdown body</span></code></pre>
+
+  <h3>Configuration Hierarchy</h3>
+  <div class="diagram">
+    <div class="diagram-title">Settings Priority (highest → lowest)</div>
+    <div class="flow">
+      <div class="flow-box fb-red">Enterprise managed</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-amber">User settings</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-blue">Project settings</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box fb-green">Plugin defaults</div>
+    </div>
+  </div>
+</section>
+
+<!-- ━━━ ENV VARS ━━━ -->
+<section id="env-vars">
+  <h2>Environment Variables</h2>
+
+  <table>
+    <tr><th>Variable</th><th>Purpose</th></tr>
+    <tr><td><code>${CLAUDE_PLUGIN_ROOT}</code></td><td>Absolute path to the plugin's root directory. Used in hooks and MCP configs for portability.</td></tr>
+    <tr><td><code>${CLAUDE_PLUGIN_DATA}</code></td><td>Persistent data directory that survives plugin updates.</td></tr>
+    <tr><td><code>$ARGUMENTS</code></td><td>User-provided arguments passed to commands.</td></tr>
+    <tr><td><code>ANTHROPIC_CUSTOM_MODEL_OPTION</code></td><td>Add a custom model entry to the /model picker.</td></tr>
+    <tr><td><code>ANTHROPIC_BETAS</code></td><td>Enable beta API features.</td></tr>
+    <tr><td><code>CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS</code></td><td>Suppress git status section in system prompt.</td></tr>
+  </table>
+
+  <div class="sep"></div>
+
+  <p style="text-align:center; color: var(--text-dim); font-size: 0.8rem; margin-top: 32px;">
+    Claude Code Architecture Documentation — Generated from the
+    <a href="https://github.com/anthropics/claude-code">anthropics/claude-code</a> repository.
+    <br>Version 2.1.78+ &bull; Anthropic
+  </p>
+</section>
+
+</main>
+
+<!-- ═══════════════════ JS ═══════════════════ -->
+<script>
+  // Active nav link highlighting on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+
+  function updateActiveNav() {
+    const scrollY = window.scrollY + 80;
+    let currentId = '';
+    sections.forEach(section => {
+      if (section.offsetTop <= scrollY) {
+        currentId = section.id;
+      }
+    });
+    navLinks.forEach(link => {
+      link.classList.toggle('active', link.getAttribute('href') === '#' + currentId);
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveNav, { passive: true });
+  updateActiveNav();
+</script>
+
+</body>
+</html>
